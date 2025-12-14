@@ -1,18 +1,41 @@
-﻿name: CI
+﻿name: CI - Build V6 Extension Engine
 
 on:
+  push:
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore NuGet packages
+        run: |
+          nuget restore .\GJames.V6.ExtensionEngine.Demo.sln
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build solution
-        run: msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release
+      - name: Build solution (Release)
+        run: |
+          msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release /m
+
+      - name: Archive DLL outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: V6Engine_Dlls
+          path: |
+            src\GJames.Engine.Contracts\bin\Release\*.dll
+            src\GJames.Engine.Core\bin\Release\*.dll
+            src\GJames.Engine.Rules\bin\Release\*.dll
+            src\GJames.Engine.DataProviders\bin\Release\*.dll
+            src\GJames.Engine.Infrastructure\bin\Release\*.dll
+            src\GJames.V6.Adapter\bin\Release\*.dll
