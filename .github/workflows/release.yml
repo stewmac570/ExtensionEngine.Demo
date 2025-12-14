@@ -1,49 +1,48 @@
-﻿name: CI - Build V6 Extension Engine
+﻿name: Release V6 Engine
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - 'v*'
 
 jobs:
-  build:
+  build-and-release:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
-
-      - name: Install .NET Framework 4.5.1 Developer Pack
-        run: |
-          choco install netfx-4.5.1-devpack -y
-
-      - name: Restore NuGet packages
-        run: |
-          nuget restore .\GJames.V6.ExtensionEngine.Demo.sln
-
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Build solution (Release)
-        run: |
-          msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release /m
-
-      - name: Collect DLLs into flat artifacts folder
-        run: |
-          mkdir artifacts
-          copy src\GJames.Engine.Contracts\bin\Release\*.dll artifacts\
-          copy src\GJames.Engine.Core\bin\Release\*.dll artifacts\
-          copy src\GJames.Engine.Rules\bin\Release\*.dll artifacts\
-          copy src\GJames.Engine.DataProviders\bin\Release\*.dll artifacts\
-          copy src\GJames.Engine.Infrastructure\bin\Release\*.dll artifacts\
-          copy src\GJames.V6.Adapter\bin\Release\*.dll artifacts\
-
-      - name: Upload DLL artifacts
-        uses: actions/upload-artifact@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
         with:
-          name: V6Engine_Dlls
-          path: artifacts\
+          dotnet-version: '8.x'
+      
+      - name: Restore
+        run: dotnet restore .\src\GJames.V6.ExtensionEngine.Demo.sln
+
+      - name: Build (Release)
+        run: dotnet build .\src\GJames.V6.ExtensionEngine.Demo.sln -c Release --no-restore
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: V6 Extension Engine ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload DLLs to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./src/GJames.Engine.Contracts/bin/Release/GJames.Engine.Contracts.dll
+          asset_name: GJames.Engine.Contracts.dll
+          asset_content_type: application/octet-stream
+
+      # repeat upload-release-asset per DLL
