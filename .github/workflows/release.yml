@@ -1,0 +1,23 @@
+﻿name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build solution
+        run: msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release
+
+      - name: Create bundle ZIP
+        run: |
+          pwsh .\scripts\create-release-zip.ps1 -Configuration Release -OutputFolder C:\Temp\V6EngineBundle
