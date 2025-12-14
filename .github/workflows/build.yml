@@ -32,14 +32,18 @@ jobs:
         run: |
           msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release /m
 
-      - name: Archive DLL outputs
+      - name: Collect DLLs into flat artifacts folder
+        run: |
+          mkdir artifacts
+          copy src\GJames.Engine.Contracts\bin\Release\*.dll artifacts\
+          copy src\GJames.Engine.Core\bin\Release\*.dll artifacts\
+          copy src\GJames.Engine.Rules\bin\Release\*.dll artifacts\
+          copy src\GJames.Engine.DataProviders\bin\Release\*.dll artifacts\
+          copy src\GJames.Engine.Infrastructure\bin\Release\*.dll artifacts\
+          copy src\GJames.V6.Adapter\bin\Release\*.dll artifacts\
+
+      - name: Upload DLL artifacts
         uses: actions/upload-artifact@v4
         with:
           name: V6Engine_Dlls
-          path: |
-            src\GJames.Engine.Contracts\bin\Release\*.dll
-            src\GJames.Engine.Core\bin\Release\*.dll
-            src\GJames.Engine.Rules\bin\Release\*.dll
-            src\GJames.Engine.DataProviders\bin\Release\*.dll
-            src\GJames.Engine.Infrastructure\bin\Release\*.dll
-            src\GJames.V6.Adapter\bin\Release\*.dll
+          path: artifacts\
