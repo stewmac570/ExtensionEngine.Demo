@@ -17,3 +17,5 @@ testing CI pipeline
 
 testing CI pipeline 2
 
+testing CI pipeline  tag v0.0.5
+
