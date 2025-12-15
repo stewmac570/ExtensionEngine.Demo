@@ -1,0 +1,32 @@
+name: Verify Build (PR Gate)
+
+on:
+  push:
+    branches:
+      - 'feature/*'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Install .NET Framework 4.5.1 Developer Pack
+        run: choco install netfx-4.5.1-devpack -y
+
+      - name: Restore
+        run: nuget restore .\GJames.V6.ExtensionEngine.Demo.sln
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build (Release)
+        run: msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release /m

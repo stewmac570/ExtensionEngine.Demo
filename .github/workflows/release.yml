@@ -1,45 +1,43 @@
-﻿name: Release V6 Engine
+﻿name: Release (DLLs)
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
 
 jobs:
   release:
     runs-on: windows-latest
 
     steps:
-      # Checkout repo
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # Install MSBuild (for .NET Framework builds)
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      # Install NuGet
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
-      # Restore packages
-      - name: Restore NuGet
-        run: nuget restore GJames.V6.ExtensionEngine.Demo.sln
+      - name: Install .NET Framework 4.5.1 Developer Pack
+        run: choco install netfx-4.5.1-devpack -y
 
-      # Build ALL projects
+      - name: Restore
+        run: nuget restore .\GJames.V6.ExtensionEngine.Demo.sln
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Build (Release)
-        run: msbuild GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release /m
+        run: msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release /m
 
-      # Upload DLLs to RELEASE PAGE
-      - name: Upload DLL assets
+      - name: Publish GitHub Release (attach DLLs)
         uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          name: V6 Extension Engine ${{ github.ref_name }}
           files: |
             src/GJames.Engine.Contracts/bin/Release/*.dll
             src/GJames.Engine.Core/bin/Release/*.dll
-            src/GJames.Engine.Infrastructure/bin/Release/*.dll
             src/GJames.Engine.DataProviders/bin/Release/*.dll
+            src/GJames.Engine.Infrastructure/bin/Release/*.dll
             src/GJames.Engine.Rules/bin/Release/*.dll
             src/GJames.V6.Adapter/bin/Release/*.dll
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
