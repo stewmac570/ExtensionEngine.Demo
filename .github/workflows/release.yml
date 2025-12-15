@@ -3,56 +3,52 @@
 on:
   push:
     tags:
-      - "v*"
-  workflow_dispatch:
+      - "v*.*.*"
+
+permissions:
+  contents: write
 
 jobs:
-  release:
-    name: Build + Publish DLLs
+  build-and-release:
     runs-on: windows-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+      - name: Install .NET Framework 4.5.1 targeting pack (Windows SDK 8.1)
+        shell: powershell
+        run: |
+          choco install windows-sdk-8.1 -y --no-progress
 
       - name: Restore NuGet packages
         run: nuget restore .\GJames.V6.ExtensionEngine.Demo.sln
 
-      - name: Build solution (Release)
+      - name: Build (Release)
         run: msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release /p:Platform="Any CPU" /m
 
-      - name: Collect DLLs (flatten)
-        shell: pwsh
+      - name: Stage DLLs (flatten)
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
           Get-ChildItem -Path .\src -Recurse -Filter *.dll |
-            Where-Object { $_.FullName -match '\\bin\\Release\\' } |
+            Where-Object { $_.FullName -match "\\bin\\Release\\" } |
             Copy-Item -Destination .\artifacts -Force
 
-          Get-ChildItem -Path .\src -Recurse -Filter *.pdb |
-            Where-Object { $_.FullName -match '\\bin\\Release\\' } |
-            Copy-Item -Destination .\artifacts -Force
-
-      - name: Zip artifacts
-        shell: pwsh
+      - name: Zip DLLs
+        shell: powershell
         run: |
-          $tag = "${{ github.ref_name }}"
-          Compress-Archive -Path .\artifacts\* -DestinationPath ".\V6ExtensionEngine_$tag.zip" -Force
+          $zipName = "V6Engine_Dlls_${{ github.ref_name }}.zip"
+          if (Test-Path $zipName) { Remove-Item $zipName -Force }
+          Compress-Archive -Path artifacts\*.dll -DestinationPath $zipName
 
-      - name: Create GitHub Release + upload assets
+      - name: Create GitHub Release + upload DLL zip
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: V6 Extension Engine ${{ github.ref_name }}
-          files: |
-            V6ExtensionEngine_${{ github.ref_name }}.zip
-            artifacts/*.dll
-            artifacts/*.pdb
+          files: V6Engine_Dlls_${{ github.ref_name }}.zip

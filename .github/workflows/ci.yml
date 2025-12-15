@@ -1,39 +1,45 @@
 name: CI - Build
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build (Release)
     runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+      - name: Install .NET Framework 4.5.1 targeting pack (Windows SDK 8.1)
+        shell: powershell
+        run: |
+          choco install windows-sdk-8.1 -y --no-progress
 
       - name: Restore NuGet packages
         run: nuget restore .\GJames.V6.ExtensionEngine.Demo.sln
 
-      - name: Build solution (Release)
+      - name: Build (Release)
         run: msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release /p:Platform="Any CPU" /m
 
-      - name: Upload build logs + outputs (optional)
+      - name: Stage DLLs (flatten)
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Get-ChildItem -Path .\src -Recurse -Filter *.dll |
+            Where-Object { $_.FullName -match "\\bin\\Release\\" } |
+            Copy-Item -Destination .\artifacts -Force
+
+      - name: Upload DLL artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ci_build_outputs
-          path: |
-            src/**/bin/Release/*.dll
-            src/**/bin/Release/*.pdb
-            src/**/bin/Release/*.xml
-          if-no-files-found: ignore
+          name: V6Engine_Dlls
+          path: artifacts\*.dll
