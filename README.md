@@ -23,3 +23,5 @@ testing CI pipeline  tag v0.0.6
 
 testing CI pipeline  tag v0.0.7
 
+testing CI pipeline  tag v0.0.8
+
