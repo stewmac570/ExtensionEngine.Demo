@@ -3,11 +3,15 @@
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*"
+  workflow_dispatch:
 
 jobs:
   release:
+    name: Build + Publish DLLs
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -16,28 +20,39 @@ jobs:
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
-      - name: Install .NET Framework 4.5.1 Developer Pack
-        run: choco install netfx-4.5.1-devpack -y
-
-      - name: Restore
-        run: nuget restore .\GJames.V6.ExtensionEngine.Demo.sln
-
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build (Release)
-        run: msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release /m
+      - name: Restore NuGet packages
+        run: nuget restore .\GJames.V6.ExtensionEngine.Demo.sln
 
-      - name: Publish GitHub Release (attach DLLs)
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build solution (Release)
+        run: msbuild .\GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release /p:Platform="Any CPU" /m
+
+      - name: Collect DLLs (flatten)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Get-ChildItem -Path .\src -Recurse -Filter *.dll |
+            Where-Object { $_.FullName -match '\\bin\\Release\\' } |
+            Copy-Item -Destination .\artifacts -Force
+
+          Get-ChildItem -Path .\src -Recurse -Filter *.pdb |
+            Where-Object { $_.FullName -match '\\bin\\Release\\' } |
+            Copy-Item -Destination .\artifacts -Force
+
+      - name: Zip artifacts
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          Compress-Archive -Path .\artifacts\* -DestinationPath ".\V6ExtensionEngine_$tag.zip" -Force
+
+      - name: Create GitHub Release + upload assets
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           name: V6 Extension Engine ${{ github.ref_name }}
           files: |
-            src/GJames.Engine.Contracts/bin/Release/*.dll
-            src/GJames.Engine.Core/bin/Release/*.dll
-            src/GJames.Engine.DataProviders/bin/Release/*.dll
-            src/GJames.Engine.Infrastructure/bin/Release/*.dll
-            src/GJames.Engine.Rules/bin/Release/*.dll
-            src/GJames.V6.Adapter/bin/Release/*.dll
+            V6ExtensionEngine_${{ github.ref_name }}.zip
+            artifacts/*.dll
+            artifacts/*.pdb
