@@ -3,46 +3,44 @@
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
 
 jobs:
-  build-and-release:
+  release:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.x'
-      
-      - name: Restore
-        run: dotnet restore .\src\GJames.V6.ExtensionEngine.Demo.sln
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
 
-      - name: Build (Release)
-        run: dotnet build .\src\GJames.V6.ExtensionEngine.Demo.sln -c Release --no-restore
+      - name: Restore NuGet
+        run: nuget restore GJames.V6.ExtensionEngine.Demo.sln
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build solution (Release)
+        run: msbuild GJames.V6.ExtensionEngine.Demo.sln /p:Configuration=Release
+
+      - name: Collect DLL outputs
+        run: |
+          mkdir output
+          copy src\GJames.Engine.Contracts\bin\Release\*.dll output
+          copy src\GJames.Engine.Core\bin\Release\*.dll output
+          copy src\GJames.Engine.DataProviders\bin\Release\*.dll output
+          copy src\GJames.Engine.Infrastructure\bin\Release\*.dll output
+          copy src\GJames.Engine.Rules\bin\Release\*.dll output
+          copy src\GJames.V6.Adapter\bin\Release\*.dll output
+
+      - name: Create ZIP package
+        run: Compress-Archive -Path output\* -DestinationPath V6Engine_Dlls.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: V6 Extension Engine ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-
-      - name: Upload DLLs to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src/GJames.Engine.Contracts/bin/Release/GJames.Engine.Contracts.dll
-          asset_name: GJames.Engine.Contracts.dll
-          asset_content_type: application/octet-stream
-
-      # repeat upload-release-asset per DLL
+          files: V6Engine_Dlls.zip
