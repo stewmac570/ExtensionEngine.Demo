@@ -15,3 +15,5 @@ This repo is used to prove the workflow:
 
 testing CI pipeline
 
+testing CI pipeline 2
+
