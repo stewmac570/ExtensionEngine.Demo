@@ -13,13 +13,9 @@ This repo is used to prove the workflow:
 
 
 
-testing CI pipeline
+testing CI pipeline test 1
 
-testing CI pipeline 2
 
-testing CI pipeline  tag v0.0.5
 
-testing CI pipeline  tag v0.0.6
 
-testing CI pipeline  tag v0.0.7
 
